@@ -11,7 +11,7 @@
 #include "host/util/util.h"
 
 static struct voyager_app_context _context =
-    {.message = "na maika ti putkata2"};
+    {.message = "test message"};
 
 void app_main(void)
 {
