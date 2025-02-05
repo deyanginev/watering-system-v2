@@ -1,0 +1,2 @@
+
+int initialize(void *ctx);

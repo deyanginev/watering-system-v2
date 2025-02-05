@@ -1,0 +1,29 @@
+{
+    "idf.adapterTargetName": "esp32c3",
+    "files.associations": {
+        "esp_flash.h": "c",
+        "esp_log.h": "c",
+        "esp_system.h": "c",
+        "inttypes.h": "c",
+        "voyager_ble.h": "c",
+        "stdio.h": "c",
+        "nvs_flash.h": "c",
+        "voyager_main.h": "c",
+        "nimble_port_freertos.h": "c",
+        "ble_store_config.h": "c",
+        "modlog.h": "c",
+        "esp_mac.h": "c",
+        "ble_gatt.h": "c",
+        "nimble_port.h": "c",
+        "ble.h": "c",
+        "voyager_primary.h": "c",
+        "ble_svc_gatt.h": "c",
+        "util.h": "c",
+        "ble_hs.h": "c",
+        "ble_hs_pvcy.h": "c",
+        "ble_svc_gap.h": "c",
+        "syscfg.h": "c",
+        "esp_nimble_cfg.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "enabled"
+}

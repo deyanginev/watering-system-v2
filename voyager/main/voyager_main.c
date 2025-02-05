@@ -1,0 +1,26 @@
+/*
+ * SPDX-FileCopyrightText: 2010-2022 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: CC0-1.0
+ */
+
+#include <stdio.h>
+#include <inttypes.h>
+#include "voyager_ble/voyager_ble.h"
+#include "voyager_main.h"
+#include "host/util/util.h"
+
+static struct voyager_app_context _context =
+    {.message = "na maika ti putkata2"};
+
+void app_main(void)
+{
+
+    ESP_LOGI(voyager_tag, "Initializing Nimble...");
+
+    int rc = initialize(&_context);
+    if (rc != ESP_OK)
+    {
+        ESP_LOGE(voyager_tag, "Could not initialize BLE: %d", rc);
+    }
+}

@@ -1,0 +1,1 @@
+int initialize_voyager_primary(void *ctx);
