@@ -4,3 +4,6 @@
 [submodule "mothership/main/modules/actions"]
 	path = mothership/main/modules/actions
 	url = https://github.com/deyanginev/actions
+[submodule "voyager/main/modules/actions"]
+	path = voyager/main/modules/actions
+	url = https://github.com/deyanginev/actions
