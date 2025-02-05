@@ -1,6 +1,6 @@
 
 #include "nvs_flash.h"
-#include "actions_list/actions_list.h"
+#include "modules/actions/actions.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -2098,13 +2098,11 @@ void populateActions()
 	availableActions[CALIBRATE_SENSOR_ACTION].canStart = &calibrateSensorCanStart;
 	availableActions[CALIBRATE_SENSOR_ACTION].tick = &tickCalibrateSensor;
 	availableActions[CALIBRATE_SENSOR_ACTION].frozen = false; // when stopped the action will be removed from the list
-	availableActions[CALIBRATE_SENSOR_ACTION].stopRequested = false;
 	availableActions[CALIBRATE_SENSOR_ACTION].start = &startCalibrateSensor;
 	availableActions[CALIBRATE_SENSOR_ACTION].stop = &stopCalibrateSensor;
 	availableActions[CALIBRATE_SENSOR_ACTION].ti = 1;
 	availableActions[CALIBRATE_SENSOR_ACTION].td = 0; // duration of 0 means we never stop
 	availableActions[CALIBRATE_SENSOR_ACTION].to = 0;
-	availableActions[CALIBRATE_SENSOR_ACTION].clear = false;
 	availableActions[CALIBRATE_SENSOR_ACTION].state = MS_NON_ACTIVE;
 	availableActions[CALIBRATE_SENSOR_ACTION].child = nullptr;
 	availableActions[CALIBRATE_SENSOR_ACTION].lst = 0;
@@ -2114,13 +2112,11 @@ void populateActions()
 	// wifi action
 	availableActions[WIFI_ACTION].tick = &tickWifi;
 	availableActions[WIFI_ACTION].frozen = false; // when stopped the action will be removed from the list
-	availableActions[WIFI_ACTION].stopRequested = false;
 	availableActions[WIFI_ACTION].start = &startWifi;
 	availableActions[WIFI_ACTION].stop = &stopWifi;
 	availableActions[WIFI_ACTION].ti = 1;
 	availableActions[WIFI_ACTION].td = 0; // duration of 0 means we never stop
 	availableActions[WIFI_ACTION].to = 0;
-	availableActions[WIFI_ACTION].clear = false;
 	availableActions[WIFI_ACTION].state = MS_NON_ACTIVE;
 	availableActions[WIFI_ACTION].child = nullptr;
 	availableActions[WIFI_ACTION].lst = 0;
@@ -2130,13 +2126,11 @@ void populateActions()
 	// BLE action
 	availableActions[BLE_ACTION].tick = &ms_ble_tick;
 	availableActions[BLE_ACTION].frozen = false; // when stopped the action will be removed from the list
-	availableActions[BLE_ACTION].stopRequested = false;
 	availableActions[BLE_ACTION].start = &ms_ble_start;
 	availableActions[BLE_ACTION].stop = &ms_ble_stop;
 	availableActions[BLE_ACTION].ti = 1;
 	availableActions[BLE_ACTION].td = 0; // duration of 0 means we never stop
 	availableActions[BLE_ACTION].to = 0;
-	availableActions[BLE_ACTION].clear = false;
 	availableActions[BLE_ACTION].state = MS_NON_ACTIVE;
 	availableActions[BLE_ACTION].child = nullptr;
 	availableActions[BLE_ACTION].lst = 0;
@@ -2147,13 +2141,11 @@ void populateActions()
 	// interpret sensor data action
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].tick = &tickInterpret;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].frozen = false;
-	availableActions[INTERPRET_SENSOR_DATA_ACTION].stopRequested = false;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].start = &startInterpret;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].stop = &stopInterpret;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].ti = 1;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].td = 1;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].to = 0;
-	availableActions[INTERPRET_SENSOR_DATA_ACTION].clear = false;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].state = MS_NON_ACTIVE;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].child = nullptr;
 	availableActions[INTERPRET_SENSOR_DATA_ACTION].lst = 0;
@@ -2164,13 +2156,11 @@ void populateActions()
 	availableActions[READ_SENSORS_ACTION].canStart = &readSensorsCanStart;
 	availableActions[READ_SENSORS_ACTION].tick = &tickSensors;
 	availableActions[READ_SENSORS_ACTION].frozen = true;
-	availableActions[READ_SENSORS_ACTION].stopRequested = false;
 	availableActions[READ_SENSORS_ACTION].start = &startSensors;
 	availableActions[READ_SENSORS_ACTION].stop = &stopSensors;
 	availableActions[READ_SENSORS_ACTION].ti = settings.siw;
 	availableActions[READ_SENSORS_ACTION].td = settings.sd;
 	availableActions[READ_SENSORS_ACTION].to = 200;
-	availableActions[READ_SENSORS_ACTION].clear = false;
 	availableActions[READ_SENSORS_ACTION].state = MS_NON_ACTIVE;
 	availableActions[READ_SENSORS_ACTION].child = nullptr;
 	availableActions[READ_SENSORS_ACTION].lst = 0;
@@ -2180,12 +2170,10 @@ void populateActions()
 	// open far valve action
 	availableActions[OUTLET_FAR_ACTION].tick = &tickFarOutlet;
 	availableActions[OUTLET_FAR_ACTION].frozen = false;
-	availableActions[OUTLET_FAR_ACTION].stopRequested = false;
 	availableActions[OUTLET_FAR_ACTION].start = &startFarOutlet;
 	availableActions[OUTLET_FAR_ACTION].stop = &stopFarOutlet;
 	availableActions[OUTLET_FAR_ACTION].ti = settings.pi;
 	availableActions[OUTLET_FAR_ACTION].td = settings.pd;
-	availableActions[OUTLET_FAR_ACTION].clear = false;
 	availableActions[OUTLET_FAR_ACTION].to = 0;
 	availableActions[OUTLET_FAR_ACTION].state = MS_NON_ACTIVE;
 	availableActions[OUTLET_FAR_ACTION].child = &availableActions[PUMP_ACTION];
@@ -2198,12 +2186,10 @@ void populateActions()
 	// open mid valve action
 	availableActions[OUTLET_MID_ACTION].tick = &tickMidOutlet;
 	availableActions[OUTLET_MID_ACTION].frozen = false;
-	availableActions[OUTLET_MID_ACTION].stopRequested = false;
 	availableActions[OUTLET_MID_ACTION].start = &startMidOutlet;
 	availableActions[OUTLET_MID_ACTION].stop = &stopMidOutlet;
 	availableActions[OUTLET_MID_ACTION].ti = settings.pi;
 	availableActions[OUTLET_MID_ACTION].td = settings.pd;
-	availableActions[OUTLET_MID_ACTION].clear = false;
 	availableActions[OUTLET_MID_ACTION].to = 0;
 	availableActions[OUTLET_MID_ACTION].state = MS_NON_ACTIVE;
 	availableActions[OUTLET_MID_ACTION].child = &availableActions[PUMP_ACTION];
@@ -2216,12 +2202,10 @@ void populateActions()
 	// open near valve action
 	availableActions[OUTLET_NEAR_ACTION].tick = &tickNearOutlet;
 	availableActions[OUTLET_NEAR_ACTION].frozen = false;
-	availableActions[OUTLET_NEAR_ACTION].stopRequested = false;
 	availableActions[OUTLET_NEAR_ACTION].start = &startNearOutlet;
 	availableActions[OUTLET_NEAR_ACTION].stop = &stopNearOutlet;
 	availableActions[OUTLET_NEAR_ACTION].ti = settings.pi;
 	availableActions[OUTLET_NEAR_ACTION].td = settings.pd;
-	availableActions[OUTLET_NEAR_ACTION].clear = false;
 	availableActions[OUTLET_NEAR_ACTION].to = 0;
 	availableActions[OUTLET_NEAR_ACTION].state = MS_NON_ACTIVE;
 	availableActions[OUTLET_NEAR_ACTION].child = &availableActions[PUMP_ACTION];
@@ -2234,12 +2218,10 @@ void populateActions()
 	// start pump action
 	availableActions[PUMP_ACTION].tick = &tickPump;
 	availableActions[PUMP_ACTION].frozen = false;
-	availableActions[PUMP_ACTION].stopRequested = false;
 	availableActions[PUMP_ACTION].start = &startPump;
 	availableActions[PUMP_ACTION].stop = &stopPump;
 	availableActions[PUMP_ACTION].ti = 0;
 	availableActions[PUMP_ACTION].td = 0;
-	availableActions[PUMP_ACTION].clear = false;
 	availableActions[PUMP_ACTION].to = 0;
 	availableActions[PUMP_ACTION].state = MS_NON_ACTIVE;
 	availableActions[PUMP_ACTION].child = nullptr;
@@ -2250,12 +2232,10 @@ void populateActions()
 	// draw home action
 	availableActions[DRAW_UI_ACTION].tick = &tickBuildScreen;
 	availableActions[DRAW_UI_ACTION].frozen = true;
-	availableActions[DRAW_UI_ACTION].stopRequested = false;
 	availableActions[DRAW_UI_ACTION].start = &startBuildScreen;
 	availableActions[DRAW_UI_ACTION].stop = &stopBuildScreen;
 	availableActions[DRAW_UI_ACTION].ti = 1000;
 	availableActions[DRAW_UI_ACTION].td = 100;
-	availableActions[DRAW_UI_ACTION].clear = false;
 	availableActions[DRAW_UI_ACTION].to = 0;
 	availableActions[DRAW_UI_ACTION].state = MS_NON_ACTIVE;
 	availableActions[DRAW_UI_ACTION].child = nullptr;
@@ -2643,7 +2623,7 @@ void setup()
 
 void loop()
 {
-	doQueueActions(&executionList);
+	doQueueActions(&executionList, millis());
 }
 
 extern "C" void app_main(void)

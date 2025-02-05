@@ -1,0 +1,6 @@
+[submodule "mothership/modules/actions"]
+	path = mothership/modules/actions
+	url = https://github.com/deyanginev/actions
+[submodule "mothership/main/modules/actions"]
+	path = mothership/main/modules/actions
+	url = https://github.com/deyanginev/actions
