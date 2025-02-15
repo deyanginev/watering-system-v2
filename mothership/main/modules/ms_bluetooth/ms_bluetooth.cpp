@@ -388,9 +388,6 @@ void ms_ble_tick(Action *a)
 
 void ms_ble_stop(Action *a)
 {
-    // this is blocking because the event processing tick is no longer happening
-    context->connectedPeers = 0;
-    context = NULL;
     int rc = nimble_port_deinit();
     if (rc != ESP_OK)
     {
@@ -400,4 +397,8 @@ void ms_ble_stop(Action *a)
     {
         ESP_LOGI("mothership", "Nimble stopped");
     }
+
+    // this is blocking because the event processing tick is no longer happening
+    context->connectedPeers = 0;
+    context = NULL;
 }
