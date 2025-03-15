@@ -18,6 +18,7 @@
         "unordered_map": "cpp",
         "unordered_set": "cpp",
         "vector": "cpp",
-        "*.inc": "cpp"
+        "*.inc": "cpp",
+        "ios": "cpp"
     }
 }
