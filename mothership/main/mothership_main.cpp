@@ -20,7 +20,7 @@
 #define ARDUINO_ARCH_UNO
 #endif
 
-#define MS_SYSTEM_VERSION "0.23"
+#define MS_SYSTEM_VERSION "0.25"
 
 #define FONT_BASELINE_CORRECTION_NORMAL 6
 #define FONT_BASELINE_CORRECTION_LARGE 12
@@ -70,8 +70,6 @@ const char *MS_BLE_TOGGLE_SETTING_KEY = "ms-ble";
 
 DynamicJsonDocument doc1(1024);
 DynamicJsonDocument doc2(1024);
-DynamicJsonDocument doc3(1024);
-DynamicJsonDocument doc4(1024);
 
 unsigned char stringPool1024b1[1024];
 unsigned char stringPool1024b2[1024];
@@ -121,7 +119,7 @@ char stringPool5b4[5];
 #define MS_BUTTON3 3
 #define MS_BUTTON4 4
 
-#define SCREENS_COUNT 20
+#define SCREENS_COUNT 21
 
 #define MS_HOME_SCREEN 0
 #define MS_SETTINGS_SCREEN 1
@@ -143,6 +141,7 @@ char stringPool5b4[5];
 #define MS_EMPTY_SCREEN 17
 #define MS_PUMP_SETTINGS_MENU_SCREEN 18
 #define MS_PUMP_CLEANING_INFO_SCREEN 19
+#define MS_PUMP_IRRIGATE_MENU_SCREEN 20
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -190,6 +189,8 @@ Preferences preferences;
 #define PUMP_PIN_HIGH LOW
 #define SENSOR_PIN_LOW HIGH
 #define PUMP_PIN_LOW HIGH
+#define VALVE_PIN_HIGH LOW
+#define VALVE_PIN_LOW HIGH
 
 #ifdef ARDUINO_ARCH_ESP32
 #define PIN_FAR 34
@@ -231,6 +232,8 @@ Preferences preferences;
 #define PUMP_PIN_HIGH LOW
 #define SENSOR_PIN_LOW HIGH
 #define PUMP_PIN_LOW HIGH
+#define VALVE_PIN_HIGH LOW
+#define VALVE_PIN_LOW HIGH
 
 #define PIN_FAR A0
 #define PIN_MID A1
@@ -250,7 +253,7 @@ Preferences preferences;
 #define MS_SENSOR_MID 1
 #define MS_SENSOR_NEAR 2
 
-#define ACTIONS_COUNT 11
+#define ACTIONS_COUNT 12
 
 // action defines
 #define READ_SENSORS_ACTION 0
@@ -264,6 +267,7 @@ Preferences preferences;
 #define CALIBRATE_SENSOR_ACTION 8
 #define BLE_ACTION 9
 #define CLEAN_PUMP_ACTION 10
+#define IRRIGATE_ACTION 11
 
 // end of action defines
 
@@ -1138,7 +1142,7 @@ void tickInterpret(Action *a)
 
 bool calibrateSensorCanStart(Action *a)
 {
-	return availableActions[READ_SENSORS_ACTION].state != MS_RUNNING && availableActions[PUMP_ACTION].state != MS_RUNNING;
+	return availableActions[READ_SENSORS_ACTION].state != MS_RUNNING && availableActions[PUMP_ACTION].state != MS_CHILD_RUNNING && availableActions[IRRIGATE_ACTION].state != MS_RUNNING;
 }
 
 void startCalibrateSensor(Action *a)
@@ -1201,7 +1205,7 @@ void stopCalibrateSensor(Action *a)
 
 bool readSensorsCanStart(Action *a)
 {
-	return availableActions[CALIBRATE_SENSOR_ACTION].state != MS_RUNNING;
+	return availableActions[CALIBRATE_SENSOR_ACTION].state != MS_RUNNING && availableActions[IRRIGATE_ACTION].state != MS_RUNNING && availableActions[CLEAN_PUMP_ACTION].state != MS_RUNNING;
 }
 
 void startSensors(Action *a)
@@ -1345,13 +1349,13 @@ void handleThresholdsSettingsScreen(int buttonValue)
 	}
 	else if (buttonValue > BUTTON_2_LOW && buttonValue < BUTTON_2_HIGH)
 	{
-		int upperLimit = (*current).dapv - 5;
-		int nv = _min(((*current).apv + 5) % (*current).dapv, upperLimit);
+		int upperLimit = _max((*current).dapv - 5, 0);
+ 		int nv = _min(((*current).apv + 5) % _max((*current).dapv, 5), upperLimit);
 		(*current).apv = nv;
 	}
 	else if (buttonValue > BUTTON_3_LOW && buttonValue < BUTTON_3_HIGH)
 	{
-		int nv = _max(_min(((*current).dapv + 5) % 105, 100), (*current).apv + 5);
+		int nv = _max(_min(((*current).dapv + 5) % 105, 100), _min((*current).apv + 5, 100));
 		(*current).dapv = nv;
 	}
 
@@ -1448,8 +1452,15 @@ void drawSensorSettingsCalibrationScreen(Action *a)
 {
 	GFXcanvas16 mainCanvas = GFXcanvas16(SCREEN_WIDTH, SCREEN_HEIGHT);
 	initCanvas(&mainCanvas);
-	char *text[] = {"B2 - Near", "B3 - Mid", "B4 - Far"};
-	printAlignedTextStack(&mainCanvas, text, 3, 1, MS_H_LEFT, MS_H_CENTER | MS_V_TOP);
+	if (availableActions[CALIBRATE_SENSOR_ACTION].canStart(nullptr))
+	{
+		char *text[] = {"B2 - Near", "B3 - Mid", "B4 - Far"};
+		printAlignedTextStack(&mainCanvas, text, 3, 1, MS_H_LEFT, MS_H_CENTER | MS_V_TOP);
+	}
+	else
+	{
+		printAlignedText(&mainCanvas, "Cannot Start", MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_CENTER);
+	}
 	printAlignedText(&mainCanvas, MS_BACK_BUTTON_PROMPT, MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_BOTTOM);
 	display.drawRGBBitmap(0, 0, mainCanvas.getBuffer(), mainCanvas.width(), mainCanvas.height());
 	display.display();
@@ -1982,12 +1993,80 @@ void handleSensorIntervalsSettingsScreen(int buttonValue)
 	storeSetPreferences();
 }
 
+void drawPumpIrrigateMenuScreen(Action *a)
+{
+	GFXcanvas16 mainCanvas = GFXcanvas16(SCREEN_WIDTH, SCREEN_HEIGHT);
+	initCanvas(&mainCanvas);
+	Action *irrigateA = &availableActions[IRRIGATE_ACTION];
+	bool actionRunning = (*irrigateA).state == MS_RUNNING;
+	if ((*irrigateA).canStart(irrigateA))
+	{
+		if (!actionRunning)
+		{
+			char *text[] = {"B2 - Near", "B3 - Mid", "B4 - Far"};
+			printAlignedTextStack(&mainCanvas, text, 3, MS_FONT_TEXT_SIZE_NORMAL, MS_H_LEFT, MS_H_CENTER | MS_V_TOP);
+			printAlignedText(&mainCanvas, MS_BACK_BUTTON_PROMPT, MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_BOTTOM);
+		}
+		else if (sensorEditState.sensorCode != -1)
+		{
+			Sensor *s = &state.s[sensorEditState.sensorCode];
+			sprintf(stringPool10b1, "On: %s", (*s).name);
+			char *text[] = {stringPool10b1, "B2 - Off"};
+			printAlignedTextStack(&mainCanvas, text, 2, MS_FONT_TEXT_SIZE_LARGE, MS_H_CENTER | MS_V_CENTER);
+		}
+	}
+	else
+	{
+		printAlignedText(&mainCanvas, "Cannot Start", MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_CENTER);
+		printAlignedText(&mainCanvas, MS_BACK_BUTTON_PROMPT, MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_BOTTOM);
+	}
+	display.drawRGBBitmap(0, 0, mainCanvas.getBuffer(), mainCanvas.width(), mainCanvas.height());
+	display.display();
+}
+
+void handlePumpIrrigateMenuScreen(int buttonValue)
+{
+	Action *ia = &availableActions[IRRIGATE_ACTION];
+	if ((*ia).state == MS_RUNNING)
+	{
+		if (buttonValue > BUTTON_2_LOW && buttonValue < BUTTON_2_HIGH)
+		{
+			requestStop(&executionList, &availableActions[IRRIGATE_ACTION]);
+			sensorEditState.sensorCode = -1;
+		}
+	}
+	else
+	{
+		if (buttonValue > BUTTON_1_LOW && buttonValue < BUTTON_1_HIGH)
+		{
+			requestStop(&executionList, &availableActions[IRRIGATE_ACTION]);
+			sensorEditState.sensorCode = -1;
+			state.scr = MS_PUMP_SETTINGS_MENU_SCREEN;
+		}
+		else if (buttonValue > BUTTON_2_LOW && buttonValue < BUTTON_2_HIGH)
+		{
+			sensorEditState.sensorCode = MS_SENSOR_NEAR;
+			scheduleAction(&executionList, &availableActions[IRRIGATE_ACTION]);
+		}
+		else if (buttonValue > BUTTON_3_LOW && buttonValue < BUTTON_3_HIGH)
+		{
+			sensorEditState.sensorCode = MS_SENSOR_MID;
+			scheduleAction(&executionList, &availableActions[IRRIGATE_ACTION]);
+		}
+		else if (buttonValue > BUTTON_4_LOW && buttonValue < BUTTON_4_HIGH)
+		{
+			sensorEditState.sensorCode = MS_SENSOR_FAR;
+			scheduleAction(&executionList, &availableActions[IRRIGATE_ACTION]);
+		}
+	}
+}
+
 void drawPumpSettingsScreen(Action *a)
 {
 	GFXcanvas16 mainCanvas = GFXcanvas16(SCREEN_WIDTH, SCREEN_HEIGHT);
 	initCanvas(&mainCanvas);
-	char *text[] = {"B2 - Intervals", "B3 - Clean"};
-	printAlignedTextStack(&mainCanvas, text, 2, 1, MS_H_LEFT, MS_H_CENTER | MS_V_TOP);
+	char *text[] = {"B2 - Intervals", "B3 - Clean", "B4 - Irrigate"};
+	printAlignedTextStack(&mainCanvas, text, 3, 1, MS_H_LEFT, MS_H_CENTER | MS_V_TOP);
 	printAlignedText(&mainCanvas, MS_BACK_BUTTON_PROMPT, MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_BOTTOM);
 	display.drawRGBBitmap(0, 0, mainCanvas.getBuffer(), mainCanvas.width(), mainCanvas.height());
 	display.display();
@@ -2006,6 +2085,10 @@ void handlePumpSettingsScreen(int buttonValue)
 	else if (buttonValue > BUTTON_3_LOW && buttonValue < BUTTON_3_HIGH)
 	{
 		state.scr = MS_PUMP_CLEANING_INFO_SCREEN;
+	}
+	else if (buttonValue > BUTTON_4_LOW && buttonValue < BUTTON_4_HIGH)
+	{
+		state.scr = MS_PUMP_IRRIGATE_MENU_SCREEN;
 	}
 }
 
@@ -2052,16 +2135,24 @@ void drawPumpCleaningInfoScreen(Action *a)
 	GFXcanvas16 mainCanvas = GFXcanvas16(SCREEN_WIDTH, SCREEN_HEIGHT);
 	initCanvas(&mainCanvas);
 	Action *ca = &availableActions[CLEAN_PUMP_ACTION];
-	if ((*ca).state == MS_NON_ACTIVE)
+	if ((*ca).canStart(ca))
 	{
-		char *message1[] = {"Press B2", "to", "start"};
-		printAlignedTextStack(&mainCanvas, message1, 3, MS_FONT_TEXT_SIZE_LARGE, MS_H_CENTER, MS_H_CENTER | MS_V_CENTER);
+		if ((*ca).state == MS_NON_ACTIVE)
+		{
+			char *message1[] = {"Press B2", "to", "start"};
+			printAlignedTextStack(&mainCanvas, message1, 3, MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER, MS_H_CENTER | MS_V_CENTER);
+		}
+		else
+		{
+			char *message1[] = {"Press B2", "to", "stop"};
+			printAlignedTextStack(&mainCanvas, message1, 3, MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER, MS_H_CENTER | MS_V_CENTER);
+		}
 	}
 	else
 	{
-		char *message1[] = {"Press B2", "to", "stop"};
-		printAlignedTextStack(&mainCanvas, message1, 3, MS_FONT_TEXT_SIZE_LARGE, MS_H_CENTER, MS_H_CENTER | MS_V_CENTER);
+		printAlignedText(&mainCanvas, "Cannot Start", MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_CENTER);
 	}
+	printAlignedText(&mainCanvas, MS_BACK_BUTTON_PROMPT, MS_FONT_TEXT_SIZE_NORMAL, MS_H_CENTER | MS_V_BOTTOM);
 	display.drawRGBBitmap(0, 0, mainCanvas.getBuffer(), mainCanvas.width(), mainCanvas.height());
 	display.display();
 }
@@ -2069,16 +2160,20 @@ void drawPumpCleaningInfoScreen(Action *a)
 void handlePumpCleaningInfoScreen(int buttonValue)
 {
 	Action *ca = &availableActions[CLEAN_PUMP_ACTION];
-
-	if (buttonValue > BUTTON_2_LOW && buttonValue < BUTTON_2_HIGH)
+	if (buttonValue > BUTTON_1_LOW && buttonValue < BUTTON_1_HIGH)
 	{
+		state.scr = MS_PUMP_SETTINGS_MENU_SCREEN;
+		requestStop(&executionList, ca);
+	}
+	else if (buttonValue > BUTTON_2_LOW && buttonValue < BUTTON_2_HIGH)
+	{
+
 		if ((*ca).state == MS_NON_ACTIVE)
 		{
 			scheduleAction(&executionList, ca);
 		}
 		else
 		{
-			state.scr = MS_PUMP_SETTINGS_MENU_SCREEN;
 			requestStop(&executionList, ca);
 		}
 	}
@@ -2148,9 +2243,54 @@ void stopBuildScreen(Action *a)
 
 // Pump
 
+bool irrigateCanStart(Action *a)
+{
+	return availableActions[PUMP_ACTION].state != MS_CHILD_RUNNING && availableActions[CLEAN_PUMP_ACTION].state != MS_RUNNING;
+}
+
+void startIrrigate(Action *a)
+{
+	if (sensorEditState.sensorCode != -1)
+	{
+		digitalWrite(PUMP_PIN, PUMP_PIN_HIGH);
+		state.p = true;
+		switch (sensorEditState.sensorCode)
+		{
+		case MS_SENSOR_NEAR:
+			digitalWrite(PIN_VALVE_NEAR, VALVE_PIN_HIGH);
+			state.vn = true;
+			break;
+		case MS_SENSOR_MID:
+			digitalWrite(PIN_VALVE_MID, VALVE_PIN_HIGH);
+			state.vm = true;
+			break;
+		case MS_SENSOR_FAR:
+			digitalWrite(PIN_VALVE_FAR, VALVE_PIN_HIGH);
+			state.vf = true;
+			break;
+		}
+	}
+}
+
+void tickIrrigate(Action *a)
+{
+}
+
+void stopIrrigate(Action *a)
+{
+	digitalWrite(PUMP_PIN, PUMP_PIN_LOW);
+	state.p = false;
+	digitalWrite(PIN_VALVE_NEAR, VALVE_PIN_LOW);
+	state.vn = false;
+	digitalWrite(PIN_VALVE_MID, VALVE_PIN_LOW);
+	state.vm = false;
+	digitalWrite(PIN_VALVE_FAR, VALVE_PIN_LOW);
+	state.vf = false;
+}
+
 bool cleanPumpCanStart(Action *a)
 {
-	return availableActions[PUMP_ACTION].state != MS_RUNNING;
+	return availableActions[PUMP_ACTION].state != MS_CHILD_RUNNING && availableActions[IRRIGATE_ACTION].state != MS_RUNNING && availableActions[READ_SENSORS_ACTION].state != MS_RUNNING;
 }
 
 void startCleanPump(Action *a)
@@ -2221,6 +2361,9 @@ void populateScreens()
 	availableScreens[MS_PUMP_SETTINGS_MENU_SCREEN].drawUI = &drawPumpSettingsScreen;
 	availableScreens[MS_PUMP_SETTINGS_MENU_SCREEN].handleButtons = &handlePumpSettingsScreen;
 
+	availableScreens[MS_PUMP_IRRIGATE_MENU_SCREEN].drawUI = &drawPumpIrrigateMenuScreen;
+	availableScreens[MS_PUMP_IRRIGATE_MENU_SCREEN].handleButtons = &handlePumpIrrigateMenuScreen;
+
 	availableScreens[MS_INTERVALS_SETTINGS_SCREEN].drawUI = &drawIntervalsSettingsScreen;
 	availableScreens[MS_INTERVALS_SETTINGS_SCREEN].handleButtons = &handleIntervalsSettingsScreen;
 
@@ -2228,7 +2371,7 @@ void populateScreens()
 	availableScreens[MS_PUMP_INTERVALS_SETTINGS_SCREEN].handleButtons = &handlePumpIntervalsSettingsScreen;
 
 	availableScreens[MS_PUMP_CLEANING_INFO_SCREEN].drawUI = &drawPumpCleaningInfoScreen;
- 	availableScreens[MS_PUMP_CLEANING_INFO_SCREEN].handleButtons = &handlePumpCleaningInfoScreen;
+	availableScreens[MS_PUMP_CLEANING_INFO_SCREEN].handleButtons = &handlePumpCleaningInfoScreen;
 
 	availableScreens[MS_SENSOR_INTERVALS_SETTINGS_SCREEN].drawUI = &drawSensorIntervalsSettingsScreen;
 	availableScreens[MS_SENSOR_INTERVALS_SETTINGS_SCREEN].handleButtons = &handleSensorIntervalsSettingsScreen;
@@ -2392,6 +2535,21 @@ void populateActions()
 	availableActions[PUMP_ACTION].lst = 0;
 	availableActions[PUMP_ACTION].st = 0;
 	availableActions[PUMP_ACTION].name = "pump";
+
+	// irrigate action
+	availableActions[IRRIGATE_ACTION].canStart = &irrigateCanStart;
+	availableActions[IRRIGATE_ACTION].tick = &tickIrrigate;
+	availableActions[IRRIGATE_ACTION].frozen = false;
+	availableActions[IRRIGATE_ACTION].start = &startIrrigate;
+	availableActions[IRRIGATE_ACTION].stop = &stopIrrigate;
+	availableActions[IRRIGATE_ACTION].ti = 0;
+	availableActions[IRRIGATE_ACTION].td = settings.pd;
+	availableActions[IRRIGATE_ACTION].to = 0;
+	availableActions[IRRIGATE_ACTION].state = MS_NON_ACTIVE;
+	availableActions[IRRIGATE_ACTION].child = nullptr;
+	availableActions[IRRIGATE_ACTION].lst = 0;
+	availableActions[IRRIGATE_ACTION].st = 0;
+	availableActions[IRRIGATE_ACTION].name = "irrigate";
 
 	// clean pump action
 	availableActions[CLEAN_PUMP_ACTION].canStart = &cleanPumpCanStart;
