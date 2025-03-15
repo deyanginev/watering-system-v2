@@ -6,9 +6,12 @@
 
 #include <stdio.h>
 #include <inttypes.h>
+#include "modules/actions/actions.h"
 #include "voyager_ble/voyager_ble.h"
 #include "voyager_main.h"
 #include "host/util/util.h"
+
+// Action *actions = (Action *)calloc(1, sizeof(Action));
 
 static struct voyager_app_context _context =
     {.message = "test message"};

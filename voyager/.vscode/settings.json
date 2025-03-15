@@ -23,7 +23,9 @@
         "ble_hs_pvcy.h": "c",
         "ble_svc_gap.h": "c",
         "syscfg.h": "c",
-        "esp_nimble_cfg.h": "c"
+        "esp_nimble_cfg.h": "c",
+        "actions.h": "c",
+        "__config": "c"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

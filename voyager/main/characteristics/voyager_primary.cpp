@@ -66,7 +66,7 @@ static struct ble_gatt_svc_def voyager_ble_svc_defs[] = {
         0,
     }
 
-};
+}
 
 int initialize_voyager_primary(void *ctx)
 {
@@ -77,7 +77,7 @@ int initialize_voyager_primary(void *ctx)
     while (curr->characteristics != 0)
     {
         int chr_index = 0;
-        struct ble_gatt_chr_def *ch = &curr->characteristics[0];
+        const struct ble_gatt_chr_def *ch = &curr->characteristics[0];
         while (ch->access_cb != 0)
         {
             ch->arg = ctx;

@@ -23,11 +23,14 @@ static void voyager_advertise(void);
 
 static uint8_t own_addr_type;
 
-static void voyager_print_addr(const void *addr)
+static ble_uuid16_t *advertisedService = (ble_uuid16_t *)calloc(1, sizeof(ble_uuid16_t));
+
+static void
+voyager_print_addr(const void *addr)
 {
     const uint8_t *u8p;
 
-    u8p = addr;
+    u8p = (uint8_t *)addr;
     MODLOG_DFLT(INFO, "%02x:%02x:%02x:%02x:%02x:%02x",
                 u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
 }
@@ -212,8 +215,9 @@ static void voyager_advertise()
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
 
-    fields.uuids16 = (ble_uuid16_t[]){
-        BLE_UUID16_INIT(GATT_SVR_SVC_ENV_SENS_UUID)};
+    advertisedService[0] = BLE_UUID16_INIT(GATT_SVR_SVC_ENV_SENS_UUID);
+
+    fields.uuids16 = advertisedService;
     fields.num_uuids16 = 1;
     fields.uuids16_is_complete = 1;
 
