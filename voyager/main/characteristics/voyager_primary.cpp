@@ -32,7 +32,13 @@ static int voyager_ble_access(uint16_t conn_handle, uint16_t attr_handle,
         }
         uuid = ctxt->chr->uuid;
 
-        if (ble_uuid_cmp(uuid, BLE_UUID16_DECLARE(GATT_SVR_SVC_ENV_SENS_CHR_HUMIDITY_UUID)) == 0)
+        const ble_uuid16_t ownUuid = {
+            .u = {
+                .type = BLE_UUID_TYPE_16,
+            },
+            .value = GATT_SVR_SVC_ENV_SENS_CHR_HUMIDITY_UUID};
+
+        if (ble_uuid_cmp(uuid, (ble_uuid_t *)&ownUuid) == 0)
         {
             struct voyager_app_context *voyager_app = (struct voyager_app_context *)arg;
 
@@ -52,21 +58,33 @@ static int voyager_ble_access(uint16_t conn_handle, uint16_t attr_handle,
     return BLE_ATT_ERR_UNLIKELY;
 }
 
-static struct ble_gatt_svc_def voyager_ble_svc_defs[] = {
-    {.type = BLE_GATT_SVC_TYPE_PRIMARY,
-     .uuid = BLE_UUID16_DECLARE(GATT_SVR_SVC_ENV_SENS_UUID),
-     .characteristics = (struct ble_gatt_chr_def[]){
-         {.uuid = BLE_UUID16_DECLARE(GATT_SVR_SVC_ENV_SENS_CHR_HUMIDITY_UUID),
-          .access_cb = voyager_ble_access,
-          .flags = BLE_GATT_CHR_F_READ | BLE_ATT_F_READ_ENC},
-         {
-             0,
-         }}},
+static const ble_uuid16_t humidityChUuid = {
+    .u = {
+        .type = BLE_UUID_TYPE_16,
+    },
+    .value = GATT_SVR_SVC_ENV_SENS_CHR_HUMIDITY_UUID};
+
+static ble_gatt_chr_def ble_gatt_chr_defs[] = {
+    {.uuid = (ble_uuid_t *)&humidityChUuid,
+     .access_cb = voyager_ble_access,
+     .flags = BLE_GATT_CHR_F_READ | BLE_ATT_F_READ_ENC},
     {
         0,
-    }
+    }};
 
-}
+static const ble_uuid16_t humidityEnvSensSvcUuid = {
+    .u = {
+        .type = BLE_UUID_TYPE_16,
+    },
+    .value = GATT_SVR_SVC_ENV_SENS_UUID};
+
+static ble_gatt_svc_def voyager_ble_svc_defs[] = {
+    {.type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = (ble_uuid_t *)&humidityEnvSensSvcUuid,
+     .characteristics = ble_gatt_chr_defs},
+    {
+        0,
+    }};
 
 int initialize_voyager_primary(void *ctx)
 {
@@ -77,11 +95,11 @@ int initialize_voyager_primary(void *ctx)
     while (curr->characteristics != 0)
     {
         int chr_index = 0;
-        const struct ble_gatt_chr_def *ch = &curr->characteristics[0];
+        struct ble_gatt_chr_def *ch = (struct ble_gatt_chr_def *)&curr->characteristics[0];
         while (ch->access_cb != 0)
         {
             ch->arg = ctx;
-            ch = &curr->characteristics[++chr_index];
+            ch = (struct ble_gatt_chr_def *)&curr->characteristics[++chr_index];
         }
         curr = &voyager_ble_svc_defs[++service_index];
     }

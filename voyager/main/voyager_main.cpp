@@ -16,7 +16,7 @@
 static struct voyager_app_context _context =
     {.message = "test message"};
 
-void app_main(void)
+extern "C" void  app_main(void)
 {
 
     ESP_LOGI(voyager_tag, "Initializing Nimble...");

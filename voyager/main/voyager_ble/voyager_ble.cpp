@@ -15,7 +15,7 @@
 #include "characteristics/voyager_primary.h"
 #include "esp_random.h"
 
-extern void ble_store_config_init(void);
+extern "C" void ble_store_config_init(void);
 
 extern char *voyager_tag;
 
