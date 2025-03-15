@@ -20,7 +20,7 @@
 #define ARDUINO_ARCH_UNO
 #endif
 
-#define MS_SYSTEM_VERSION "0.22"
+#define MS_SYSTEM_VERSION "0.23"
 
 #define FONT_BASELINE_CORRECTION_NORMAL 6
 #define FONT_BASELINE_CORRECTION_LARGE 12
@@ -121,7 +121,7 @@ char stringPool5b4[5];
 #define MS_BUTTON3 3
 #define MS_BUTTON4 4
 
-#define SCREENS_COUNT 17
+#define SCREENS_COUNT 18
 
 #define MS_HOME_SCREEN 0
 #define MS_SETTINGS_SCREEN 1
@@ -140,6 +140,7 @@ char stringPool5b4[5];
 #define MS_SENSOR_CALIBRATION_SETTINGS_SCREEN 14
 #define MS_CALIBRATION_INFO_SCREEN 15
 #define MS_BLE_TOGGLE_SCREEN 16
+#define MS_EMPTY_SCREEN 17
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -1198,6 +1199,20 @@ const char *_hsResolveSensorInfo(char *target, Sensor *s)
 	return target;
 }
 
+void drawEmptyScreen(Action *a)
+{
+	display.clearDisplay();
+	display.display();
+}
+
+void handleEmptyScreen(int buttonValue)
+{
+	if (buttonValue > BUTTON_1_LOW && buttonValue < BUTTON_1_HIGH)
+	{
+		state.scr = MS_HOME_SCREEN;
+	}
+}
+
 void drawHomeScreen(Action *a)
 {
 	GFXcanvas16 mainCanvas = GFXcanvas16(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -1208,7 +1223,7 @@ void drawHomeScreen(Action *a)
 	sprintf(stringPool30b4, "WIFI: %s BLE: %s", _resolveWiFIStatusString(stringPool20b2, wifi.state), _resolveBLEStatusString(stringPool10b1));
 	char *message[] = {stringPool30b1, stringPool30b2, stringPool30b3, stringPool30b4};
 	printAlignedTextStack(&mainCanvas, message, 4, 1, MS_H_CENTER, MS_H_CENTER | MS_V_TOP);
-	printAlignedText(&mainCanvas, "B1 - menu", 1, (MS_H_CENTER | MS_V_BOTTOM));
+	printAlignedText(&mainCanvas, "B1 - menu, B2 - dim", 1, (MS_H_CENTER | MS_V_BOTTOM));
 	display.drawRGBBitmap(0, 0, mainCanvas.getBuffer(), mainCanvas.width(), mainCanvas.height());
 	display.display();
 }
@@ -1218,6 +1233,10 @@ void handleHomeScreen(int buttonValue)
 	if (buttonValue > BUTTON_1_LOW && buttonValue < BUTTON_1_HIGH)
 	{
 		state.scr = MS_MENU_SCREEN;
+	}
+	else if (buttonValue > BUTTON_2_LOW && buttonValue < BUTTON_2_HIGH)
+	{
+		state.scr = MS_EMPTY_SCREEN;
 	}
 }
 
@@ -2044,6 +2063,9 @@ void populateScreens()
 
 	availableScreens[MS_SETTINGS_SCREEN].drawUI = &drawSettingsScreen;
 	availableScreens[MS_SETTINGS_SCREEN].handleButtons = &handleSettingsScreen;
+
+	availableScreens[MS_EMPTY_SCREEN].drawUI = &drawEmptyScreen;
+	availableScreens[MS_EMPTY_SCREEN].handleButtons = &handleEmptyScreen;
 
 	availableScreens[MS_SENSOR_POWER_SETTINGS_SCREEN].drawUI = &drawSensorSettingsScreen;
 	availableScreens[MS_SENSOR_POWER_SETTINGS_SCREEN].handleButtons = &handleSensorSettingsScreen;
