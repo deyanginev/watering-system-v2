@@ -14,6 +14,7 @@
 #include "nimble/nimble_port_freertos.h"
 #include "characteristics/voyager_primary.h"
 #include "esp_random.h"
+#include "modules/actions/actions.h"
 
 extern "C" void ble_store_config_init(void);
 
@@ -24,6 +25,7 @@ static void voyager_advertise(void);
 static uint8_t own_addr_type;
 
 static ble_uuid16_t *advertisedService = (ble_uuid16_t *)calloc(1, sizeof(ble_uuid16_t));
+static voyager_app_context *context;
 
 static void
 voyager_print_addr(const void *addr)
@@ -98,6 +100,7 @@ static int voyager_gap_event(struct ble_gap_event *event, void *arg)
 
         if (!desc.sec_state.encrypted)
         {
+            context->ble.state = VY_BLE_STATE_CONNECTING;
             rc = ble_gap_security_initiate(desc.conn_handle);
 
             if (rc != ESP_OK)
@@ -106,6 +109,10 @@ static int voyager_gap_event(struct ble_gap_event *event, void *arg)
                 return rc;
             }
             return BLE_ATT_ERR_INSUFFICIENT_AUTHEN;
+        }
+        else
+        {
+            context->ble.state = VY_BLE_STATE_CONNECTED;
         }
         return 0;
     }
@@ -132,6 +139,7 @@ static int voyager_gap_event(struct ble_gap_event *event, void *arg)
         MODLOG_DFLT(INFO, "disconnect; reason=%d ", event->disconnect.reason);
         voyager_print_conn_desc(&event->disconnect.conn);
         voyager_advertise();
+        context->ble.state = VY_BLE_STATE_DISCONNECTED;
         return 0;
     }
     break;
@@ -165,6 +173,10 @@ static int voyager_gap_event(struct ble_gap_event *event, void *arg)
                         event->enc_change.status);
             ble_store_util_delete_peer(&desc.peer_id_addr);
             return ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
+        }
+        else
+        {
+            context->ble.state = VY_BLE_STATE_CONNECTED;
         }
         return 0;
     }
@@ -333,30 +345,9 @@ static int on_ble_store_status(struct ble_store_status_event *event, void *arg)
     return 0;
 }
 
-static void bleprph_host_task(void *param)
-{
-    ESP_LOGI(voyager_tag, "BLE Host Task Started");
-    /* This function will return only when nimble_port_stop() is executed */
-    nimble_port_run();
-
-    ESP_LOGI(voyager_tag, "BLE Host Task Ended");
-
-    nimble_port_freertos_deinit();
-}
-
 int initialize(struct voyager_app_context *ctx)
 {
-    int rc;
-
-    // init flash memory
-    rc = nvs_flash_init();
-    if (rc == ESP_ERR_NVS_NO_FREE_PAGES || rc == ESP_ERR_NVS_NEW_VERSION_FOUND)
-    {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        rc = nvs_flash_init();
-    }
-
-    rc = nimble_port_init();
+    int rc = nimble_port_init();
     ESP_ERROR_CHECK(rc);
 
     if (rc != ESP_OK)
@@ -370,7 +361,6 @@ int initialize(struct voyager_app_context *ctx)
     ble_hs_cfg.sync_cb = on_ble_sync;
     ble_hs_cfg.gatts_register_cb = on_ble_gatt_server_register;
     ble_hs_cfg.store_status_cb = on_ble_store_status;
-    ble_hs_cfg.gatts_register_arg = ctx;
     ble_hs_cfg.sm_our_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_hs_cfg.sm_their_key_dist |= BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_hs_cfg.sm_mitm = 1;
@@ -404,7 +394,41 @@ int initialize(struct voyager_app_context *ctx)
     /* XXX Need to have template for store */
     ble_store_config_init();
 
-    nimble_port_freertos_init(bleprph_host_task);
-
     return ESP_OK;
+}
+
+void vy_ble_start(Action *a)
+{
+    context = (voyager_app_context *)a->context;
+    int rc = initialize(context);
+    if (rc != ESP_OK)
+    {
+        ESP_LOGE(voyager_tag, "Could not initialize BLE: %d", rc);
+    }
+}
+void vy_ble_tick(Action *a)
+{
+    ble_npl_eventq *eventQueue = nimble_port_get_dflt_eventq();
+
+    struct ble_npl_event *ev;
+    npl_funcs_t *nplFuncs = npl_freertos_funcs_get();
+
+    ev = nplFuncs->p_ble_npl_eventq_get(eventQueue, portTICK_PERIOD_MS);
+    if (ev)
+    {
+        nplFuncs->p_ble_npl_event_run(ev);
+    }
+}
+void vy_ble_stop(Action *a)
+{
+    int rc = nimble_port_deinit();
+    if (rc != ESP_OK)
+    {
+        ESP_LOGE(voyager_tag, "Nimble stop failed; reason=%d", rc);
+    }
+    else
+    {
+        ESP_LOGI(voyager_tag, "Nimble stopped");
+    }
+    context = nullptr;
 }
